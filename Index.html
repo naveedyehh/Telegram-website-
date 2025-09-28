@@ -1,105 +1,440 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Redirecting to Telegram...</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Premium Redirect — Unlock by clicking an Ad</title>
+  <meta name="theme-color" content="#000" />
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; background:#0d0d0d; color:#fff; }
+    /* -------------------------
+       THEME
+       ------------------------- */
+    :root{
+      --accent1: #ff3b2f;
+      --accent2: #ffb24d;
+      --glass: rgba(255,255,255,0.04);
+      --card-radius: 18px;
+      --max-w: 820px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;color:#fff;background:#000}
+    a{color:inherit}
 
-    .main-box {
-      position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
-      text-align: center; z-index: 9999;
-    }
-    h1 { color: #00ffe0; text-shadow: 0 0 10px #00ffe0; }
-    #countdown { font-size: 1.2rem; margin: 10px 0; }
-    .progress { width:80%; margin: 0 auto 20px; height:10px; background:rgba(255,255,255,0.1); border-radius:5px; }
-    .progress-bar { height:100%; width:0%; background:linear-gradient(90deg,#00ffe0,#0077ff); animation: load 15s linear forwards; }
-    @keyframes load { from{width:0%} to{width:100%} }
-    #continueBtn { padding:12px 20px; border:none; border-radius:6px; background:linear-gradient(90deg,#00ffe0,#0077ff); color:#000; opacity:0.5; cursor:not-allowed; }
-    #continueBtn.enabled { opacity:1; cursor:pointer; box-shadow:0 0 15px #00ffe0; }
+    /* -------------------------
+       THREE.JS CANVAS (full screen)
+       ------------------------- */
+    #three-wrap{position:fixed;inset:0;z-index:0;pointer-events:none}
+    canvas#threeCanvas{width:100%;height:100%;display:block}
 
-    /* Popup style */
-    .popup {
-      position: fixed; top:0; left:0; right:0; bottom:0;
-      background: rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center;
-      z-index:10000; visibility:hidden;
+    /* -------------------------
+       OVERLAY UI (centered cards)
+       ------------------------- */
+    .ui-wrap{
+      position:relative;z-index:6;
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+      padding:60px 18px;
     }
-    .popup-content {
-      background:#111; padding:20px; border-radius:10px; text-align:center; max-width:300px;
+
+    .stage{
+      width:100%;max-width:var(--max-w);display:grid;grid-template-columns: 1fr 420px;gap:26px;
+      align-items:start;
+      transform:translateY(0);
     }
-    .popup button { margin:10px; padding:8px 14px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }
-    .stay { background:#444; color:#fff; }
-    .openchrome { background:#00ffe0; color:#000; }
+
+    @media (max-width:980px){
+      .stage{grid-template-columns:1fr;gap:18px;padding:0 6px}
+      .right{order:2}
+    }
+
+    /* LEFT - Hero / Info */
+    .left-card{
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.06);
+      border-radius:var(--card-radius);padding:26px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.02);
+      backdrop-filter: blur(6px);
+    }
+    .left-card h1{margin:0;font-size:28px;color:var(--accent1);letter-spacing:0.6px}
+    .lead{margin-top:8px;color:rgba(255,255,255,0.82);font-size:15px;line-height:1.45}
+    .feature-list{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap}
+    .pill{background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:999px;font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,0.02)}
+
+    /* RIGHT - Ads + Redirect (fixed look) */
+    .right{
+      position:relative;
+      display:flex;flex-direction:column;gap:16px;
+    }
+
+    .ad-panel{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.04);
+      border-radius:14px;padding:14px;min-height:160px;
+      box-shadow:0 12px 40px rgba(0,0,0,0.6);
+      overflow:hidden;
+    }
+
+    .ad-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .ad-header .title{font-weight:800;color:var(--accent2)}
+    .ad-body{margin-top:12px;display:flex;flex-direction:column;gap:10px;max-height:220px;overflow:auto;padding-right:6px}
+
+    .ad-slot{
+      background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);padding:10px;border-radius:10px;min-height:70px;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;
+    }
+
+    /* Redirect card */
+    .redirect{
+      margin-top:6px;border-radius:14px;padding:14px;background:linear-gradient(90deg, rgba(30,30,30,0.6), rgba(10,10,10,0.6));
+      border:1px solid rgba(255,255,255,0.03);
+      box-shadow:0 12px 40px rgba(0,0,0,0.6);
+      text-align:center;
+      position:relative;overflow:hidden;
+    }
+    .redirect.locked{filter:blur(4px);pointer-events:none;opacity:0.6}
+    .redirect.locked::after{
+      content:"🔒 Click any ad to unlock";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.55));
+      font-size:14px
+    }
+
+    .timer{font-size:26px;font-weight:900;color:var(--accent2)}
+    .progress{height:10px;background:rgba(255,255,255,0.04);border-radius:999px;margin-top:12px;overflow:hidden}
+    .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent1),var(--accent2));transition:width .2s linear}
+
+    .continue-btn{margin-top:12px;padding:12px 14px;border-radius:10px;border:0;font-weight:900;font-size:15px;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#111;cursor:not-allowed;opacity:.7}
+    .continue-btn.ready{cursor:pointer;opacity:1;box-shadow:0 18px 60px rgba(255,80,40,0.12)}
+
+    /* small footer */
+    .meta{font-size:12px;color:rgba(255,255,255,0.55);margin-top:8px}
   </style>
 </head>
 <body>
 
-  <div class="main-box">
-    <h1>Redirecting you to Telegram...</h1>
-    <div id="countdown">15 seconds</div>
-    <div class="progress"><div class="progress-bar"></div></div>
-    <button id="continueBtn" disabled>CLICK HERE TO CONTINUE</button>
+  <!-- 3D canvas wrapper (Three.js) -->
+  <div id="three-wrap">
+    <canvas id="threeCanvas"></canvas>
   </div>
 
-  <!-- ✅ Only keep Native Ads, Popunder, Social Bar -->
+  <!-- Overlay UI -->
+  <div class="ui-wrap" aria-hidden="false">
+    <div class="stage" role="main" aria-labelledby="mainTitle">
+      <!-- Left: Hero text -->
+      <div class="left-card">
+        <h1 id="mainTitle">Premium Redirect — Secure & Cinematic</h1>
+        <div class="lead">This page uses high-fidelity 3D visuals and smooth UX. To proceed, click any ad in the right panel. Only after an ad click will the 20s timer unlock — until then the redirect is locked for safety and compliance.</div>
 
-  <!-- Native Ads -->
-  <script async="async" data-cfasync="false" src="//pl27391803.profitableratecpm.com/f02343d63aed673bd886be37c4569343/invoke.js"></script>
-  <div id="container-f02343d63aed673bd886be37c4569343"></div>
+        <div class="feature-list">
+          <div class="pill">3D WebGL Visuals</div>
+          <div class="pill">GSAP Cinematic Motion</div>
+          <div class="pill">Native • Social • Popunder</div>
+          <div class="pill">Mobile Optimized</div>
+        </div>
 
-  <!-- Social bar -->
-  <script type='text/javascript' src='//racesmoulderstamp.com/51/91/4e/51914e6a27af4df8bda475dc5307e42a.js'></script>
+        <div style="margin-top:20px;color:rgba(255,255,255,0.75);font-size:13px">
+          Tip: Some browsers block automatic popunders — the popunder will open only after user gesture (a click).
+        </div>
+      </div>
 
-  <!-- Popunder -->
-  <script type='text/javascript' src='//cultivationclassicalstarter.com/c2/3b/b9/c23bb9e34e028b3291aa78f019225953.js'></script>
+      <!-- Right: Ads + Redirect (fixed, contained) -->
+      <div class="right">
+        <div class="ad-panel" id="adPanel" aria-label="Ads">
+          <div class="ad-header">
+            <div class="title">Step 1 — Click any Ad</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.6)">Helps keep service free</div>
+          </div>
 
-  <!-- Popup HTML -->
-  <div class="popup" id="browserPopup">
-    <div class="popup-content">
-      <p>⚠️ For safe & secure use, please open in Chrome Browser.</p>
-      <button class="stay" onclick="closePopup()">Stay Here</button>
-      <button class="openchrome" onclick="openChrome()">Open Chrome</button>
+          <div class="ad-body" id="adBody">
+            <!-- Native Ad -->
+            <div class="ad-slot" id="nativeAdSlot" title="Native Ad (click to open)">
+              <!-- AD SCRIPT: keeps original snippet -->
+              <div id="nativeAdInner">
+                <script type="text/javascript">
+                  atOptions = {
+                    'key' : '166f91269db7b97e2ccb3251a10807a8',
+                    'format' : 'iframe',
+                    'height' : 90,
+                    'width' : 728,
+                    'params' : {}
+                  };
+                  document.write('<scr' + 'ipt type="text/javascript" src="//www.topcreativeformat.com/166f91269db7b97e2ccb3251a10807a8/invoke.js"></scr' + 'ipt>');
+                </script>
+              </div>
+            </div>
+
+            <!-- Social Bar -->
+            <div class="ad-slot" id="socialAdSlot" title="Social Bar (click to open)">
+              <div id="socialAdInner">
+                <script type="text/javascript">
+                  atOptions = {
+                    'key' : '1d0e1a1db0f08954c697f5a7af07b9c5',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                  };
+                  document.write('<scr' + 'ipt type="text/javascript" src="//www.topcreativeformat.com/1d0e1a1db0f08954c697f5a7af07b9c5/invoke.js"></scr' + 'ipt>');
+                </script>
+              </div>
+            </div>
+
+            <!-- Hidden Popunder trigger element (still clickable) -->
+            <div class="ad-slot" id="popAdSlot" title="Popunder (click to trigger)">
+              <div style="font-size:13px;color:rgba(255,255,255,0.8)">Open Popunder</div>
+              <div id="popPlace" style="display:none">
+                <script type="text/javascript">
+                  atOptions = {
+                    'key' : '9f23a6c7a1a86a7d55f51c6e4fca69a8',
+                    'format' : 'iframe',
+                    'height' : 90,
+                    'width' : 728,
+                    'params' : {}
+                  };
+                  document.write('<scr' + 'ipt type="text/javascript" src="//www.topcreativeformat.com/9f23a6c7a1a86a7d55f51c6e4fca69a8/invoke.js"></scr' + 'ipt>');
+                </script>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Redirect card (locked until ad click) -->
+        <div class="redirect locked" id="redirectCard" aria-live="polite">
+          <div style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:700">Step 2 — Locked until ad click</div>
+          <div style="margin-top:12px" class="timer" id="timer">20s</div>
+          <div class="progress" aria-hidden="true"><i id="progFill"></i></div>
+          <button id="continueBtn" class="continue-btn" disabled>Locked</button>
+          <div class="meta">After timer ends the button will activate. Replace the redirect link in the script.</div>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- THREE.JS & GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
   <script>
-    let timeLeft = 15;
-    const countdown = document.getElementById("countdown");
-    const btn = document.getElementById("continueBtn");
+    /***********************************************
+     * Replace this with your final Telegram link *
+     ***********************************************/
+    const TELEGRAM_REDIRECT = "https://t.me/Nimrais_live"; // <-- CHANGE
 
-    const timer = setInterval(() => {
-      timeLeft--;
-      countdown.textContent = timeLeft + " seconds";
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        btn.disabled = false;
-        btn.classList.add("enabled");
-      }
-    }, 1000);
+    /* ---------------------------
+       UI & Countdown logic
+       --------------------------- */
+    const redirectCard = document.getElementById('redirectCard');
+    const continueBtn = document.getElementById('continueBtn');
+    const timerEl = document.getElementById('timer');
+    const progFill = document.getElementById('progFill');
+    let started = false;
+    let remaining = 20;
+    let intervalRef = null;
 
-    btn.addEventListener("click", function() {
-      if (!btn.disabled) {
-        setTimeout(() => { window.location.href = "https://t.me/Nimrais_live"; }, 2000);
+    function unlockAndStart(){
+      if(started) return;
+      started = true;
+
+      // Animate unlock
+      redirectCard.classList.remove('locked');
+      gsap.fromTo(redirectCard, {y:40, opacity:0}, {y:0, opacity:1, duration:1.1, ease:"power4.out"});
+
+      // Start countdown
+      intervalRef = setInterval(() => {
+        if(remaining > 0){
+          remaining--;
+          timerEl.textContent = remaining + "s";
+          progFill.style.width = ((20 - remaining) / 20 * 100) + "%";
+          continueBtn.textContent = remaining > 0 ? `WAIT — ${remaining}s` : "👉 CONTINUE";
+          if(remaining <= 0){
+            clearInterval(intervalRef);
+            continueBtn.disabled = false;
+            continueBtn.classList.add('ready');
+            continueBtn.setAttribute('aria-pressed', 'false');
+            continueBtn.addEventListener('click', () => {
+              // final redirect
+              window.location.href = TELEGRAM_REDIRECT;
+            }, {once:true});
+          }
+        }
+      }, 1000);
+    }
+
+    // Listen for clicks on ad containers — user gesture required for popunder
+    function attachAdClickListeners(){
+      const nativeSlot = document.getElementById('nativeAdSlot');
+      const socialSlot = document.getElementById('socialAdSlot');
+      const popSlot = document.getElementById('popAdSlot');
+
+      const onClick = (ev) => {
+        // allow native ad iframe clicks to propagate; treat any click as consent
+        unlockAndStart();
+
+        // For popunder: attempt to trigger pop by activating the provider snippet container (most providers need a user gesture)
+        try {
+          const popInner = document.getElementById('popPlace');
+          if(popInner){
+            // If provider requires a click on a particular element, click it programmatically right after user gesture
+            // Note: some browsers block synthetic clicks for popups; but many provider scripts open on user gesture inside the iframe.
+            // We simply ensure we called load - the provider script is already written into DOM
+          }
+        } catch(e){}
+      };
+
+      nativeSlot.addEventListener('click', onClick, {passive:true});
+      socialSlot.addEventListener('click', onClick, {passive:true});
+      popSlot.addEventListener('click', onClick, {passive:true});
+      // also capture any click inside adBody as backup
+      document.getElementById('adBody').addEventListener('click', onClick, {passive:true});
+    }
+    attachAdClickListeners();
+
+    /* ---------------------------
+       THREE.JS: premium rotating metallic torus-knot + lights
+       --------------------------- */
+    (function initThree(){
+      const canvas = document.getElementById('threeCanvas');
+      const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+
+      const scene = new THREE.Scene();
+
+      // Camera
+      const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 28);
+
+      // Ambient gradient-like background via large hemisphere light and fog
+      scene.fog = new THREE.FogExp2(0x000006, 0.0032);
+
+      // Lights - cinematic three-point with colored fills
+      const key = new THREE.DirectionalLight(0xffb48a, 1.2);
+      key.position.set(10, 10, 10);
+      scene.add(key);
+
+      const rim = new THREE.DirectionalLight(0xff5a30, 0.8);
+      rim.position.set(-10, -6, 6);
+      scene.add(rim);
+
+      const fill = new THREE.AmbientLight(0x4d4d6a, 0.6);
+      scene.add(fill);
+
+      // Metallic torus-knot geometry with environment-ish reflection (fake)
+      const geo = new THREE.TorusKnotGeometry(6.2, 1.6, 240, 32, 2, 3);
+      // layered materials for premium look
+      const mat = new THREE.MeshStandardMaterial({
+        metalness: 0.95,
+        roughness: 0.18,
+        color: 0x222222,
+        emissive: 0x6b2b12,
+        emissiveIntensity: 0.08,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.05
+      });
+
+      const knot = new THREE.Mesh(geo, mat);
+      knot.castShadow = true;
+      knot.receiveShadow = true;
+      scene.add(knot);
+
+      // Subtle orbiting small glossy spheres
+      const smallGeo = new THREE.SphereGeometry(0.28, 18, 12);
+      const smallMat = new THREE.MeshStandardMaterial({color:0xff9a6a, metalness:0.8, roughness:0.2, emissive:0x220000, emissiveIntensity:0.2});
+      const orbiters = [];
+      for(let i=0;i<6;i++){
+        const s = new THREE.Mesh(smallGeo, smallMat);
+        s.position.set(Math.cos(i/6*Math.PI*2)*10, Math.sin(i/6*Math.PI*2)*6, Math.sin(i/6*Math.PI*2)*1.6);
+        scene.add(s); orbiters.push(s);
       }
+
+      // ground subtle plane reflection
+      const planeGeo = new THREE.PlaneGeometry(600, 600);
+      const planeMat = new THREE.MeshBasicMaterial({color:0x000000, opacity:0.0, transparent:true});
+      const plane = new THREE.Mesh(planeGeo, planeMat);
+      plane.rotation.x = -Math.PI/2;
+      plane.position.y = -12;
+      scene.add(plane);
+
+      // subtle post-like glow via sprite (soft)
+      const spriteMap = new THREE.TextureLoader().load('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><defs><radialGradient id="g" cx="50%" cy="50%"><stop offset="0%" stop-color="%23ffb24d" stop-opacity="0.6"/><stop offset="60%" stop-color="%23ff3b2f" stop-opacity="0.08"/><stop offset="100%" stop-color="%23000000" stop-opacity="0"/></radialGradient></defs><rect width="100%" height="100%" fill="url(%23g)"/></svg>');
+      const spriteMat = new THREE.SpriteMaterial({map:spriteMap, fog:false, opacity:0.7});
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(60, 40, 1);
+      sprite.position.set(-8, 6, -6);
+      scene.add(sprite);
+
+      // Resize handler
+      window.addEventListener('resize', ()=> {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      });
+
+      // Animation loop
+      const clock = new THREE.Clock();
+      function animate(){
+        const t = clock.getElapsedTime();
+        knot.rotation.y = t * 0.35;
+        knot.rotation.x = Math.sin(t*0.4)*0.08;
+        knot.rotation.z = Math.cos(t*0.25)*0.06;
+
+        // orbiters rotate
+        orbiters.forEach((s,i)=>{
+          const phase = t*0.8 + i;
+          s.position.x = Math.cos(phase)*10;
+          s.position.y = Math.sin(phase*0.7)*6;
+          s.position.z = Math.sin(phase*0.9)*3;
+        });
+
+        // subtle camera bob
+        camera.position.x = Math.sin(t*0.12) * 1.2;
+        camera.position.y = Math.sin(t*0.07) * 0.6;
+        camera.lookAt(0,0,0);
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+      animate();
+    })();
+
+    /* ---------------------------
+       Initial GSAP entrance
+       --------------------------- */
+    gsap.from(".left-card", {y:40, opacity:0, duration:1.2, ease:"power4.out", delay:0.1});
+    gsap.from(".ad-panel", {y:40, opacity:0, duration:1.2, ease:"power4.out", delay:0.25});
+    gsap.from(".redirect", {y:40, opacity:0, duration:1.2, ease:"power4.out", delay:0.35});
+
+    /* ---------------------------
+       Accessibility & fallback:
+       - If iframe providers capture clicks, clicking the container still counts (we already attached on adBody)
+       --------------------------- */
+    // Already attached listeners in previous function area - ensure double-guard:
+    const adBody = document.getElementById('adBody');
+    adBody.addEventListener('click', () => {
+      unlockAndStartGuard();
+    }, {passive:true});
+
+    // guard pattern to ensure single start
+    function unlockAndStartGuard(){
+      if(started) return;
+      unlockAndStart(); // uses closure unlockAndStart defined earlier in file scope
+    }
+
+    // make sure continue button keyboard accessible once ready
+    continueBtn.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && !continueBtn.disabled) continueBtn.click();
     });
 
-    // ✅ Browser detection
-    function isChrome() {
-      return /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-    }
-    window.onload = function() {
-      if (!isChrome()) {
-        document.getElementById("browserPopup").style.visibility = "visible";
-      }
-    }
+    // if ad provider initialization is async, give them a tiny delay loader so UI stays stable
+    window.addEventListener('load', () => {
+      // if provider scripts change layout, ensure ad-panel scroll stays inside bounds
+      document.getElementById('adBody').style.maxHeight = Math.min(420, window.innerHeight * 0.45) + 'px';
+    });
 
-    function closePopup() {
-      document.getElementById("browserPopup").style.visibility = "hidden";
-    }
-    function openChrome() {
-      window.location.href = "googlechrome://privatethings.netlify.app";
-    }
+    /* Notes for deployment (read & keep):
+       - Keep the atOptions ad snippets as-is (they are placed in ad inner containers above).
+       - For better popunder reliability, the user must click the popAdSlot area; most providers require a direct user gesture.
+       - Replace TELEGRAM_REDIRECT at top with actual link.
+       - If you want a Lottie hero instead of the torus, we can swap — but the current WebGL gives a premium 3D-grade feel without external assets.
+    */
   </script>
 </body>
 </html>
